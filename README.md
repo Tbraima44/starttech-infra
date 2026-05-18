@@ -248,7 +248,3 @@ MIT License - see LICENSE file
 · AWS
 · HashiCorp Terraform
 · AltSchool Africa
-
-```
-
-These README files provide comprehensive documentation for both repositories with setup instructions, architecture diagrams, and operational guidance.

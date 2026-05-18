@@ -91,7 +91,7 @@ variable "redis_num_cache_nodes" {
 variable "alarm_email" {
   description = "Email for CloudWatch alarms"
   type        = string
-  default     = "alerts@example.com"
+  default     = "brahimtoyheeb@gmail.com"
 }
 
 variable "mongodb_uri" {

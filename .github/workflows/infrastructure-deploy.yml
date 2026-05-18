@@ -1,4 +1,3 @@
-# .github/workflows/infrastructure-deploy.yml
 name: Infrastructure Deployment
 
 on:
@@ -64,5 +63,5 @@ jobs:
       
     - name: Terraform Apply
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      run: terraform apply tfplan
+      run: terraform apply -auto-approve tfplan
       working-directory: ./terraform
