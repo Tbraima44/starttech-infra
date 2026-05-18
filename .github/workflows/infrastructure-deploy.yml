@@ -56,6 +56,9 @@ jobs:
         terraform plan \
           -var="mongodb_uri=${{ secrets.MONGODB_URI }}" \
           -var="key_name=${{ secrets.SSH_KEY_NAME }}" \
+          -var="certificate_arn=" \
+          -var="domain_name=" \
+          -var="alarm_email=brahimtoyheeb@gmail.com" \
           -out=tfplan
       working-directory: ./terraform
       

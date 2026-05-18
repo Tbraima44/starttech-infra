@@ -73,7 +73,7 @@ variable "domain_name" {
 variable "certificate_arn" {
   description = "SSL certificate ARN"
   type        = string
-  sensitive   = true
+  default     = ""
 }
 
 variable "redis_node_type" {
