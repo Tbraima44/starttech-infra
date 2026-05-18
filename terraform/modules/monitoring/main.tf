@@ -6,9 +6,9 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           metrics = [
-            ["AWS/EC2", "CPUUtilization", { "stat": "Average" }],
-            ["AWS/ApplicationELB", "RequestCount", { "stat": "Sum" }],
-            ["AWS/ApplicationELB", "TargetResponseTime", { "stat": "Average" }]
+            ["AWS/EC2", "CPUUtilization", { "stat" : "Average" }],
+            ["AWS/ApplicationELB", "RequestCount", { "stat" : "Sum" }],
+            ["AWS/ApplicationELB", "TargetResponseTime", { "stat" : "Average" }]
           ]
           period = 300
           stat   = "Average"

@@ -31,5 +31,5 @@ output "backend_url" {
 }
 
 output "cloudfront_distribution_id" {
-   value = module.storage.cloudfront_distribution_id 
+  value = module.storage.cloudfront_distribution_id
 }

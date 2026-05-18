@@ -8,10 +8,10 @@ data "aws_ami" "amazon_linux_2" {
 }
 
 resource "aws_launch_template" "backend" {
-  name_prefix   = "${var.project_name}-backend-"
-  image_id      = data.aws_ami.amazon_linux_2.id
-  instance_type = var.instance_type
-  key_name      = var.key_name
+  name_prefix            = "${var.project_name}-backend-"
+  image_id               = data.aws_ami.amazon_linux_2.id
+  instance_type          = var.instance_type
+  key_name               = var.key_name
   vpc_security_group_ids = [var.security_group_id]
   iam_instance_profile { name = aws_iam_instance_profile.ec2_profile.name }
   user_data = base64encode(templatefile("${path.module}/user_data.sh", {
@@ -33,7 +33,7 @@ resource "aws_launch_template" "backend" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name = "${var.project_name}-backend-${var.environment}"
+      Name        = "${var.project_name}-backend-${var.environment}"
       Environment = var.environment
     }
   }
@@ -71,8 +71,8 @@ resource "aws_iam_role" "ec2_role" {
     Version = "2012-10-17"
     Statement = [
       {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
+        Action    = "sts:AssumeRole"
+        Effect    = "Allow"
         Principal = { Service = "ec2.amazonaws.com" }
       }
     ]
@@ -103,8 +103,8 @@ resource "aws_iam_role_policy" "ec2_policy" {
         Resource = "*"
       },
       {
-        Effect = "Allow"
-        Action = ["cloudwatch:PutMetricData", "ec2:DescribeTags"]
+        Effect   = "Allow"
+        Action   = ["cloudwatch:PutMetricData", "ec2:DescribeTags"]
         Resource = "*"
       }
     ]
@@ -120,7 +120,7 @@ resource "aws_autoscaling_policy" "scale_up" {
   name                   = "${var.project_name}-scale-up"
   scaling_adjustment     = 1
   adjustment_type        = "ChangeInCapacity"
-  cooldown              = 300
+  cooldown               = 300
   autoscaling_group_name = aws_autoscaling_group.backend.name
 }
 
@@ -128,7 +128,7 @@ resource "aws_autoscaling_policy" "scale_down" {
   name                   = "${var.project_name}-scale-down"
   scaling_adjustment     = -1
   adjustment_type        = "ChangeInCapacity"
-  cooldown              = 300
+  cooldown               = 300
   autoscaling_group_name = aws_autoscaling_group.backend.name
 }
 
@@ -136,5 +136,5 @@ resource "aws_autoscaling_policy" "scale_down" {
 resource "aws_cloudwatch_log_group" "backend" {
   name              = "/aws/ec2/${var.project_name}-backend-${var.environment}"
   retention_in_days = 30
-  tags = { Environment = var.environment }
+  tags              = { Environment = var.environment }
 }

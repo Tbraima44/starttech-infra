@@ -3,7 +3,7 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames = true
   enable_dns_support   = true
   tags = {
-    Name = "${var.project_name}-vpc-${var.environment}"
+    Name        = "${var.project_name}-vpc-${var.environment}"
     Environment = var.environment
   }
 }
@@ -15,7 +15,7 @@ resource "aws_subnet" "public" {
   availability_zone       = var.availability_zones[count.index]
   map_public_ip_on_launch = true
   tags = {
-    Name = "${var.project_name}-public-${var.availability_zones[count.index]}"
+    Name        = "${var.project_name}-public-${var.availability_zones[count.index]}"
     Environment = var.environment
   }
 }
@@ -26,25 +26,25 @@ resource "aws_subnet" "private" {
   cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index + length(var.availability_zones))
   availability_zone = var.availability_zones[count.index]
   tags = {
-    Name = "${var.project_name}-private-${var.availability_zones[count.index]}"
+    Name        = "${var.project_name}-private-${var.availability_zones[count.index]}"
     Environment = var.environment
   }
 }
 
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
-  tags = { Name = "${var.project_name}-igw-${var.environment}" }
+  tags   = { Name = "${var.project_name}-igw-${var.environment}" }
 }
 
 resource "aws_eip" "nat" {
   domain = "vpc"
-  tags = { Name = "${var.project_name}-nat-eip-${var.environment}" }
+  tags   = { Name = "${var.project_name}-nat-eip-${var.environment}" }
 }
 
 resource "aws_nat_gateway" "nat" {
   allocation_id = aws_eip.nat.id
   subnet_id     = aws_subnet.public[0].id
-  tags = { Name = "${var.project_name}-nat-${var.environment}" }
+  tags          = { Name = "${var.project_name}-nat-${var.environment}" }
 }
 
 resource "aws_route_table" "public" {
@@ -91,7 +91,7 @@ resource "aws_security_group" "backend" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/8"]   # SSH from internal network only
+    cidr_blocks = ["10.0.0.0/8"] # SSH from internal network only
   }
   egress {
     from_port   = 0
