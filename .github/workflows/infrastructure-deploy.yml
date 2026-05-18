@@ -1,0 +1,54 @@
+# .github/workflows/infrastructure-deploy.yml
+name: Infrastructure Deployment
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+
+env:
+  AWS_REGION: us-east-1
+  TF_VERSION: '1.5.0'
+
+jobs:
+  terraform:
+    name: Terraform Plan and Apply
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive
+      working-directory: ./terraform
+    - name: Terraform Init
+      run: terraform init
+      working-directory: ./terraform
+    - name: Terraform Validate
+      run: terraform validate
+      working-directory: ./terraform
+    - name: Terraform Plan
+      run: |
+        terraform plan \
+          -var="mongodb_uri=${{ secrets.MONGODB_URI }}" \
+          -var="key_name=${{ secrets.SSH_KEY_NAME }}" \
+          -out=tfplan
+      working-directory: ./terraform
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: terraform apply tfplan
+      working-directory: ./terraform

@@ -1,0 +1,17 @@
+project_name          = "starttech"
+environment           = "production"
+aws_region            = "us-east-1"
+vpc_cidr             = "10.0.0.0/16"
+availability_zones    = ["us-east-1a", "us-east-1b"]
+instance_type        = "t3.medium"
+asg_min_size         = 2
+asg_max_size         = 10
+asg_desired_capacity = 3
+key_name             = "your-ssh-key-name"
+backend_image_tag    = "latest"
+domain_name          = "starttech.example.com"
+certificate_arn      = "arn:aws:acm:us-east-1:123456789012:certificate/xxxx-xxxx-xxxx-xxxx"
+redis_node_type      = "cache.t3.micro"
+redis_num_cache_nodes = 2
+alarm_email          = "alerts@example.com"
+mongodb_uri          = "mongodb+srv://user:password@cluster.mongodb.net/database"

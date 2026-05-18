@@ -1,0 +1,11 @@
+{
+  "alarms": [
+    {
+      "AlarmName": "high-cpu-alarm",
+      "MetricName": "CPUUtilization",
+      "Namespace": "AWS/EC2",
+      "Threshold": 80,
+      "EvaluationPeriods": 2
+    }
+  ]
+}

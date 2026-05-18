@@ -1,0 +1,18 @@
+# Top Error Messages
+fields @timestamp, @message
+| filter @message like /ERROR/
+| stats count() by @message
+| sort count() desc
+| limit 10
+
+# Average Response Time
+fields @timestamp, @message
+| filter @message like /duration/
+| stats avg(duration) by bin(5m)
+| sort @timestamp desc
+
+# Request Count by Status
+fields @timestamp, @message
+| filter @message like /HTTP/
+| stats count() by status
+| sort count() desc

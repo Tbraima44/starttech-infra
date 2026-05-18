@@ -1,0 +1,1 @@
+output "backend_log_group_name" { value = "/aws/ec2/${var.project_name}-backend-${var.environment}" }
