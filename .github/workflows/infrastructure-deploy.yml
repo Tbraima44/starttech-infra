@@ -32,6 +32,9 @@ jobs:
       uses: hashicorp/setup-terraform@v2
       with:
         terraform_version: ${{ env.TF_VERSION }}
+    - name: Terraform Format Fix
+      run: terraform fmt -recursive
+      working-directory: ./terraform
     - name: Terraform Format Check
       run: terraform fmt -check -recursive
       working-directory: ./terraform
