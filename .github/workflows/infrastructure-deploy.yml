@@ -49,10 +49,14 @@ jobs:
     - name: Terraform Validate
       run: terraform validate
       working-directory: ./terraform
+
+    - name: Wait for AWS services
+      run: sleep 30
       
     - name: Terraform Plan
       run: |
         terraform plan \
+          -var="instance_type=${{ vars.INSTANCE_TYPE }}" \
           -var="mongodb_uri=${{ secrets.MONGODB_URI }}" \
           -var="key_name=${{ secrets.SSH_KEY_NAME }}" \
           -var="certificate_arn=" \

@@ -31,25 +31,25 @@ variable "availability_zones" {
 variable "instance_type" {
   description = "EC2 instance type"
   type        = string
-  default     = "t3.medium"
+  default     = "t3.micro"
 }
 
 variable "asg_min_size" {
   description = "Minimum ASG size"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "asg_max_size" {
   description = "Maximum ASG size"
   type        = number
-  default     = 10
+  default     = 2
 }
 
 variable "asg_desired_capacity" {
   description = "Desired ASG capacity"
   type        = number
-  default     = 3
+  default     = 1
 }
 
 variable "key_name" {
@@ -85,7 +85,7 @@ variable "redis_node_type" {
 variable "redis_num_cache_nodes" {
   description = "Number of Redis nodes"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "alarm_email" {

@@ -12,10 +12,18 @@ resource "aws_elasticache_replication_group" "redis" {
   subnet_group_name          = aws_elasticache_subnet_group.redis.name
   security_group_ids         = [var.security_group_id]
   automatic_failover_enabled = var.num_cache_nodes > 1 ? true : false
-  num_cache_clusters         = var.num_cache_nodes
+  num_cache_clusters         = 2
   engine                     = "redis"
   engine_version             = "7.0"
   at_rest_encryption_enabled = true
   transit_encryption_enabled = true
-  tags                       = { Environment = var.environment }
+
+  # Add timeouts for longer operations
+  timeouts {
+    create = "45m"
+    update = "45m"
+    delete = "45m"
+  }
+
+  tags = { Environment = var.environment }
 }

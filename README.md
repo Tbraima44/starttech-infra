@@ -158,7 +158,7 @@ Variable Default Description
 project_name "starttech" Project name
 environment "production" Deployment environment
 aws_region "us-east-1" AWS region
-instance_type "t3.medium" EC2 instance type
+instance_type "t3.micro" EC2 instance type
 asg_min_size 2 Minimum ASG instances
 asg_max_size 10 Maximum ASG instances
 redis_node_type "cache.t3.micro" ElastiCache node type
