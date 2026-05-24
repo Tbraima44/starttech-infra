@@ -1,217 +1,375 @@
 ```markdown
 # StartTech Infrastructure Runbook
 
-This runbook covers the management and maintenance of the AWS infrastructure provisioned by Terraform.
+This runbook documents how to deploy, maintain, troubleshoot, and safely destroy the AWS infrastructure provisioned by Terraform.
 
 ## Table of Contents
-- [Quick Reference](#quick-reference)
-- [Deploying Infrastructure Changes](#deploying-infrastructure-changes)
-- [Destroying the Infrastructure](#destroying-the-infrastructure)
-- [Managing State Lock](#managing-state-lock)
-- [Scaling the Application](#scaling-the-application)
-- [Monitoring & Alarms](#monitoring--alarms)
-- [Troubleshooting](#troubleshooting)
-- [Security & Access](#security--access)
+
+1. [Quick Reference](#quick-reference)
+2. [Prerequisites](#prerequisites)
+3. [Deploying Infrastructure](#deploying-infrastructure)
+4. [Destroying Infrastructure](#destroying-infrastructure)
+5. [Managing Terraform State](#managing-terraform-state)
+6. [Scaling and Maintenance](#scaling-and-maintenance)
+7. [Monitoring and Alerts](#monitoring-and-alerts)
+8. [Troubleshooting](#troubleshooting)
+9. [Security and Access](#security-and-access)
+10. [Useful Commands](#useful-commands)
 
 ---
 
 ## Quick Reference
 
-| Resource | Identifier |
-|----------|------------|
-| **VPC ID** |  |
-| **ALB DNS** |  |
-| **CloudFront Domain** |  |
-| **CloudFront Distribution ID** |  |
-| **S3 Bucket** |  |
-| **ECR Repository** |  |
-| **Redis Endpoint** |  |
-| **ASG Name** |  |
-| **SSH Key Pair** |  |
+| Resource | How to Retrieve | Notes |
+| --- | --- | --- |
+| VPC ID | `terraform output vpc_id` | Network identifier |
+| ALB DNS name | `terraform output alb_dns_name` | Public load balancer endpoint |
+| CloudFront domain | `terraform output cloudfront_domain_name` | Frontend CDN endpoint |
+| CloudFront distribution ID | `terraform output cloudfront_distribution_id` | Used for invalidations |
+| S3 bucket name | `terraform output s3_bucket_name` | Frontend hosting bucket |
+| ECR repository URL | `terraform output ecr_repository_url` | Backend image repository |
+| Redis endpoint | `terraform output redis_endpoint` | Cache endpoint |
+| ASG name | `terraform output asg_name` | Auto Scaling Group name |
+| SSH key name | `terraform output` or `terraform.tfvars` | Defined in `key_name` |
+
+> Replace the placeholder values in `terraform/terraform.tfvars` before deploying.
 
 ---
 
-## Deploying Infrastructure Changes
+## Prerequisites
 
-### Using CI/CD (Recommended)
-1. Push changes to the `main` branch of `starttech-infra`.
-2. The GitHub Actions workflow (`infrastructure-deploy.yml`) will automatically run `terraform plan` and `terraform apply`.
-3. Verify the output in the Actions console.
+Before you begin, ensure the following are available:
 
-### Manual Deployment from Local
+- Terraform `>= 1.5.0`
+- AWS CLI configured with credentials
+- A valid MongoDB Atlas connection string
+- Optional: a domain name and ACM certificate ARN for HTTPS
+- Access to the GitHub repository and CI/CD secrets if using automation
+
+### Required Terraform Variables
+
+Create or update `terraform/terraform.tfvars` with at least:
+
+```hcl
+key_name    = "starttech-key"
+mongodb_uri = "mongodb+srv://..."
+alarm_email = "you@example.com"
+```
+
+Optional variables include:
+
+- `project_name`
+- `environment`
+- `aws_region`
+- `instance_type`
+- `asg_min_size`
+- `asg_max_size`
+- `asg_desired_capacity`
+- `domain_name`
+- `certificate_arn`
+- `redis_node_type`
+- `redis_num_cache_nodes`
+
+---
+
+## Deploying Infrastructure
+
+### Option 1: Use the deployment script (recommended)
+
+Run the repository deployment script:
+
+```bash
+./scripts/deploy-infrastructure.sh
+```
+
+This script runs the following steps:
+
+1. `terraform init`
+2. `terraform validate`
+3. `terraform plan -out=tfplan`
+4. `terraform apply tfplan`
+
+### Option 2: Deploy manually
+
 ```bash
 cd terraform
 terraform init
-terraform plan \
-  -var="mongodb_uri=<your-mongodb-uri>" \
-  -var="key_name=starttech-key" \
-  -var="certificate_arn=" \
-  -var="domain_name=" \
-  -var="alarm_email=yours@email.com" \
-  -out=tfplan
+terraform fmt -recursive
+terraform validate
+terraform plan -out=tfplan
 terraform apply tfplan
 ```
 
-Important: The terraform.tfvars file contains sensitive values and is not committed to Git. Use the above -var flags or a local terraform.tfvars file.
+### Option 3: CI/CD deployment
 
----
+1. Push changes to the `main` branch.
+2. The GitHub Actions workflow deploys the infrastructure automatically.
+3. Review the workflow logs for `terraform plan` and `terraform apply` output.
 
-Destroying the Infrastructure
+### Post-deployment checks
 
-WARNING: This will permanently delete all AWS resources, including data.
+After the deployment completes, verify the outputs:
 
 ```bash
 cd terraform
-terraform destroy \
-  -var="mongodb_uri=<your-mongodb-uri>" \
-  -var="key_name=your-key" \
-  -auto-approve
+terraform output
 ```
 
-If you only need to destroy a specific module (e.g., compute), use:
+Confirm that the following are populated:
+
+- `alb_dns_name`
+- `cloudfront_domain_name`
+- `s3_bucket_name`
+- `ecr_repository_url`
+- `redis_endpoint`
+- `asg_name`
+
+---
+
+## Destroying Infrastructure
+
+> WARNING: This action permanently deletes AWS resources, including data.
+
+### Recommended: use the destroy script
 
 ```bash
+./scripts/destroy-infrastructure.sh
+```
+
+### Manual destroy
+
+```bash
+cd terraform
+terraform destroy -auto-approve
+```
+
+### Destroy a single module only
+
+If you need to remove only one part of the stack, use a target:
+
+```bash
+cd terraform
 terraform destroy -target=module.compute -auto-approve
 ```
 
 ---
 
-Managing State Lock
+## Managing Terraform State
 
-Terraform state is stored in an S3 bucket (starttech-terraform-state) with a DynamoDB lock table (terraform-locks). If a plan or apply fails, the lock might remain.
+Terraform state is stored remotely with a backend. If a deployment fails, the state lock may remain and block future runs.
 
-Forcefully Release a Lock
+### Verify the backend configuration
+
+Check the Terraform backend settings in `terraform/main.tf` before making changes.
+
+### Release a stale lock
+
+If a lock remains, remove it from DynamoDB:
 
 ```bash
 aws dynamodb delete-item \
-    --table-name terraform-locks \
-    --key '{"LockID": {"S": "starttech-terraform-state/terraform.tfstate"}}' \
-    --region us-east-1
+  --table-name terraform-locks \
+  --key '{"LockID": {"S": "starttech-terraform-state/terraform.tfstate"}}' \
+  --region us-east-1
 ```
 
-Alternatively, use -lock=false in the Terraform command, but only if you are certain no other process is running.
+### Use `-lock=false` only when safe
+
+This is only appropriate if you are certain no other deployment is in progress.
 
 ---
 
-Scaling the Application
+## Scaling and Maintenance
 
-Change the number of EC2 instances
+### Change the Auto Scaling Group capacity
 
 ```bash
-# Set desired capacity (min: 1, max: 10)
 aws autoscaling set-desired-capacity \
-    --auto-scaling-group-name starttech-asg-production \
-    --desired-capacity 3 \
-    --region us-east-1
+  --auto-scaling-group-name <asg-name> \
+  --desired-capacity 3 \
+  --region us-east-1
 ```
 
-Modify instance type
+### Update the instance type
 
-Update the instance_type variable in terraform.tfvars or the workflow, then re‑apply Terraform. The ASG will perform a rolling update automatically.
+1. Update `instance_type` in `terraform/terraform.tfvars`.
+2. Re-apply Terraform.
+3. Confirm the ASG launches instances with the new type.
 
----
+### Trigger an instance refresh
 
-Monitoring & Alarms
+```bash
+aws autoscaling start-instance-refresh \
+  --auto-scaling-group-name <asg-name> \
+  --preferences '{"MinHealthyPercentage":90}' \
+  --region us-east-1
+```
 
-CloudWatch Dashboard
+### Update backend image tag
 
-· Name: starttech-production
-· Contents: CPU utilization, ALB request count, and a Logs Insights widget for top errors.
-· Access via AWS Console → CloudWatch → Dashboards.
-
-Alarms
-
-· High CPU Alarm: Triggers if average CPU > 80% for 2 evaluation periods.
-· Unhealthy Hosts Alarm: Triggers if any target in the ALB target group is unhealthy.
-· Alarms send email to the configured alarm_email.
-
-Logs
-
-· Log group: /aws/ec2/starttech-backend-production
-· Use Logs Insights to query errors, response times, etc.
+If the backend image needs to be refreshed, update `backend_image_tag` and re-apply Terraform.
 
 ---
 
-Troubleshooting
+## Monitoring and Alerts
 
-Instances are cycling (launching and terminating)
+### CloudWatch dashboard
 
-1. Check ASG activity history:
-   ```bash
-   aws autoscaling describe-scaling-activities \
-       --auto-scaling-group-name starttech-asg-production \
-       --region us-east-1
-   ```
-2. Common causes:
-   · Invalid key pair – ensure the key pair exists.
-   · Instance type not available – switch to t2.micro or t3.micro.
-   · User‑data script errors – check the launch template.
-3. Inspect the user‑data script:
-   ```bash
-   aws ec2 describe-launch-template-versions \
-       --launch-template-name starttech-backend-production \
-       --region us-east-1 \
-       --query "LaunchTemplateVersions[0].LaunchTemplateData.UserData" \
-       --output text | base64 -d
-   ```
+- Dashboard configuration is located in `monitoring/cloudwatch-dashboard.json`
+- Use the AWS Console to review CPU, request count, and log-based widgets
 
-Backend returns 502 Bad Gateway
+### CloudWatch alarms
 
-1. Verify the ALB target health:
-   ```bash
-   aws elbv2 describe-target-health \
-       --target-group-arn $(aws elbv2 describe-target-groups \
-           --names starttech-tg-production \
-           --region us-east-1 \
-           --query "TargetGroups[0].TargetGroupArn" \
-           --output text) \
-       --region us-east-1
-   ```
-2. If targets are unhealthy, SSH (or use SSM) into an instance and check the Docker container:
-   ```bash
-   docker ps -a
-   docker logs backend
-   ```
-3. Common issues: MongoDB connection string, Redis endpoint, or missing environment variables.
+Alarm definitions are stored in `monitoring/alarm-definitions.json`.
 
-MongoDB Atlas connection error
+Typical alarms include:
 
-· Ensure the MongoDB Atlas IP whitelist includes 0.0.0.0/0 (or the NAT Gateway’s Elastic IP).
-· Verify the MONGO_URI environment variable is correctly set in the EC2 launch template.
+- High CPU usage
+- Unhealthy targets behind the ALB
+- Alarm notifications sent to `alarm_email`
 
-Redis connection error
+### CloudWatch Logs
 
-· Verify the Redis endpoint is master.starttech-redis-production.xsbsfs.use1.cache.amazonaws.com and port 6379.
-· Ensure the security group allows inbound traffic on port 6379 from the backend instances.
+Use CloudWatch Logs Insights to inspect application and system logs for errors, latency, and deployment issues.
 
 ---
 
-Security & Access
+## Troubleshooting
 
-IAM Roles
+### 1. Instances are repeatedly launching and terminating
 
-· EC2 Role: starttech-ec2-role-production – grants CloudWatch logs, ECR pull, and SSM access.
-· Deployment Policy: deployment-policy.json – used by GitHub Actions workflows.
+Check the ASG activity history:
 
-SSH Access
+```bash
+aws autoscaling describe-scaling-activities \
+  --auto-scaling-group-name <asg-name> \
+  --region us-east-1
+```
 
-· The key pair starttech-key is required. Private key was generated during setup.
-· Connect: ssh -i starttech-key.pem ec2-user@<public-ip>
-· For private instances without public IP, use SSM:
-  ```bash
-  aws ssm start-session --target <instance-id> --region us-east-1
-  ```
+Common causes:
 
-S3 Bucket Policy
+- Invalid or missing SSH key pair
+- Unsupported instance type in the selected region
+- Errors in the user data script
 
-· The frontend bucket is publicly readable for static website hosting.
-· Block Public Access has been disabled at the bucket level; account‑level settings were also adjusted.
+Inspect the launch template user data:
+
+```bash
+aws ec2 describe-launch-template-versions \
+  --launch-template-name <launch-template-name> \
+  --region us-east-1 \
+  --query "LaunchTemplateVersions[0].LaunchTemplateData.UserData" \
+  --output text | base64 -d
+```
+
+### 2. Backend returns `502 Bad Gateway`
+
+Check target health:
+
+```bash
+aws elbv2 describe-target-health \
+  --target-group-arn $(aws elbv2 describe-target-groups \
+    --names <target-group-name> \
+    --region us-east-1 \
+    --query "TargetGroups[0].TargetGroupArn" \
+    --output text) \
+  --region us-east-1
+```
+
+If targets are unhealthy:
+
+1. Connect to the instance using SSH or SSM.
+2. Review container status.
+3. Inspect backend logs.
+
+```bash
+ docker ps -a
+docker logs backend
+```
+
+Common causes:
+
+- MongoDB connection failure
+- Redis endpoint or connectivity issue
+- Missing environment variables
+
+### 3. MongoDB Atlas connection errors
+
+- Confirm the Atlas IP allowlist includes the deployment network path.
+- Verify `mongodb_uri` is present and valid in `terraform/terraform.tfvars`.
+
+### 4. Redis errors
+
+- Verify the Redis endpoint from `terraform output redis_endpoint`
+- Confirm the backend security group allows inbound traffic on port `6379`
 
 ---
 
-Additional Resources
+## Security and Access
 
-· Terraform Documentation
-· AWS CLI Command Reference
+### IAM roles and policies
+
+- EC2 instance role grants access for CloudWatch Logs, ECR pull, and SSM
+- Deployment policy is stored in `policies/deployment-policy.json`
+
+### SSH access
+
+Use the configured key name from `key_name`:
+
+```bash
+ssh -i <private-key>.pem ec2-user@<public-ip>
+```
+
+For private instances without a public IP:
+
+```bash
+aws ssm start-session --target <instance-id> --region us-east-1
+```
+
+### S3 bucket access
+
+The frontend bucket is configured for static website hosting. Review bucket policies before making public access changes.
+
+---
+
+## Useful Commands
+
+### Validate Terraform configuration
+
+```bash
+cd terraform
+terraform fmt -recursive
+terraform init -backend=false
+terraform validate
+```
+
+### View all outputs
+
+```bash
+cd terraform
+terraform output
+```
+
+### View all resources in current state
+
+```bash
+cd terraform
+terraform state list
+```
+
+### Check current Terraform plan without applying
+
+```bash
+cd terraform
+terraform plan
+```
+
+---
+
+## Notes
+
+- Use the repository scripts for repeatable deployments and destruction.
+- Keep `terraform/terraform.tfvars` local and out of source control.
+- Update monitoring and alarm settings before making major infrastructure changes.
 
 
