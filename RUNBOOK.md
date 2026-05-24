@@ -1,9 +1,3 @@
-We'll create two detailed runbooks: one for the infrastructure repository and one for the application repository. Each covers common operational tasks, troubleshooting, and disaster recovery. You can copy the content directly into RUNBOOK.md files.
-
----
-
-1. starttech-infra/RUNBOOK.md
-
 ```markdown
 # StartTech Infrastructure Runbook
 
@@ -220,7 +214,4 @@ Additional Resources
 · Terraform Documentation
 · AWS CLI Command Reference
 
-```
-
----
 

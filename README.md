@@ -197,10 +197,6 @@ Destroying Infrastructure
 4. Run terraform validate
 5. Create a Pull Request
 
-📄 License
-
-MIT License - see LICENSE file
-
 🙏 Acknowledgments
 
 · AWS
