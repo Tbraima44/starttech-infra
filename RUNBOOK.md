@@ -30,7 +30,7 @@ This runbook documents how to deploy, maintain, troubleshoot, and safely destroy
 | ECR repository URL | `terraform output ecr_repository_url` | Backend image repository |
 | Redis endpoint | `terraform output redis_endpoint` | Cache endpoint |
 | ASG name | `terraform output asg_name` | Auto Scaling Group name |
-| SSH key name | `terraform output` or `terraform.tfvars` | Defined in `key_name` |
+| SSH key name | `terraform/terraform.tfvars` | Defined in `key_name` |
 
 > Replace the placeholder values in `terraform/terraform.tfvars` before deploying.
 
@@ -51,7 +51,7 @@ Before you begin, ensure the following are available:
 Create or update `terraform/terraform.tfvars` with at least:
 
 ```hcl
-key_name    = "starttech-key"
+key_name    = "your-key"
 mongodb_uri = "mongodb+srv://..."
 alarm_email = "you@example.com"
 ```
@@ -283,7 +283,7 @@ If targets are unhealthy:
 3. Inspect backend logs.
 
 ```bash
- docker ps -a
+docker ps -a
 docker logs backend
 ```
 

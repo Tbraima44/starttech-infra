@@ -6,47 +6,55 @@ The StartTech platform is deployed on AWS and consists of a frontend hosted on S
 
 ## Architecture Diagram
 
-```mermaid
-flowchart TB
-    subgraph AWS[AWS Cloud - us-east-1]
-        subgraph VPC[VPC 10.0.0.0/16]
-            subgraph Public[Public Subnets]
-                ALB[Application Load Balancer]
-                IGW[Internet Gateway]
-            end
+```
+graph TD
+    subgraph "Users"
+        User[🌐 Internet Users]
+    end
 
-            subgraph Private[Private Subnets]
-                ASG[EC2 Auto Scaling Group]
-                REDIS[ElastiCache Redis]
-                NAT[NAT Gateway]
-            end
+    subgraph "AWS Cloud"
+        subgraph "Global Services"
+            CF[CloudFront CDN<br/>E3SZN3R2L7RW89]
+            S3[S3 Bucket<br/>starttech-frontend-production-565897770092<br/>Static Website Hosting]
+            ECR[ElastiCache Redis<br/>master.starttech-redis-production.xsbsfs.use1.cache.amazonaws.com]
+            ATLAS[MongoDB Atlas<br/>External Service]
+            CW[CloudWatch<br/>Logs, Metrics, Alarms, Dashboard]
         end
 
-        subgraph External[External Services]
-            CF[CloudFront]
-            S3[S3 Static Hosting]
-            MONGO[MongoDB Atlas]
+        subgraph "VPC - vpc-0e52fb1d922ccb8bc<br/>10.0.0.0/16"
+            subgraph "Availability Zone 1"
+                PUB1[Public Subnet]
+                PRIV1[Private Subnet]
+                EC2_1[EC2 Instance<br/>Backend (Docker)<br/>Health Checks]
+            end
+            subgraph "Availability Zone 2"
+                PUB2[Public Subnet]
+                PRIV2[Private Subnet]
+                EC2_2[EC2 Instance<br/>Backend (Docker)<br/>Health Checks]
+            end
+            IGW[Internet Gateway]
+            NAT[NAT Gateway]
+            ALB[Application Load Balancer<br/>starttech-alb-production-2041761124.us-east-1.elb.amazonaws.com]
+            ASG[Auto Scaling Group<br/>starttech-asg-production<br/>Desired: 2, Min: 1, Max: 10]
         end
     end
 
-    User[User]
     User -->|HTTPS| CF
-    CF -->|Serves static assets| S3
-    User -->|HTTPS| ALB
-    ALB -->|Routes traffic| ASG
-    ASG -->|Reads/Writes cache| REDIS
-    ASG -->|Database access| MONGO
-    ASG -->|Outbound internet access| NAT
-    NAT -->|Egress| IGW
-    IGW -->|Public internet| User
-
-    classDef default fill:#0f172a,stroke:#38bdf8,color:#e2e8f0;
-    classDef subgraph fill:#111827,stroke:#475569,color:#e2e8f0;
-    class AWS subgraph
-    class VPC subgraph
-    class Public subgraph
-    class Private subgraph
-    class External subgraph
+    CF -->|Static Assets| S3
+    CF -->|/auth/*, /api/*, /users/*, /tasks/*| ALB
+    ALB -->|Forward to| ASG
+    ASG -->|Launches| EC2_1
+    ASG -->|Launches| EC2_2
+    EC2_1 -.->|Pulls Image| ECR
+    EC2_2 -.->|Pulls Image| ECR
+    EC2_1 -->|Connects to| ECR[(Redis)]
+    EC2_2 -->|Connects to| ECR
+    EC2_1 -->|Connects to| ATLAS[(MongoDB)]
+    EC2_2 -->|Connects to| ATLAS
+    EC2_1 & EC2_2 -.->|Logs & Metrics| CW
+    CF & ALB & ECR & EC2 -.->|Metrics| CW
+    IGW --> PUB1 & PUB2
+    NAT --> PRIV1 & PRIV2
 ```
 
 ## Components
