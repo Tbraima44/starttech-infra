@@ -43,13 +43,13 @@ variable "asg_min_size" {
 variable "asg_max_size" {
   description = "Maximum ASG size"
   type        = number
-  default     = 2
+  default     = 3
 }
 
 variable "asg_desired_capacity" {
   description = "Desired ASG capacity"
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "key_name" {
