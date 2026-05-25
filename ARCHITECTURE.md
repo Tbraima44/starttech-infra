@@ -1,71 +1,10 @@
-```markdown
 # StartTech Infrastructure Architecture
 
-This document describes the AWS infrastructure provisioned by Terraform for the StartTech application. It covers networking, compute, storage, caching, database, monitoring, and security.
+This document describes the AWS infrastructure for the StartTech application. It covers networking, compute, storage, caching, database, monitoring, and security.
 
 ## High‑Level Diagram
 
-```
-      ┌──────────────────────────────────────────┐
-      │              Internet Users              │
-      └──────────────┬───────────────────────────┘
-                     │ HTTPS
-                     ▼
-      ┌──────────────────────────────┐
-      │        CloudFront CDN        │
-      │   (Serves Frontend & Proxies │
-      │         API Requests)        │
-      └──────┬──────────────┬────────┘
-             │              │
-Static Assets│              │ API Requests
-(/index.html,│              │ (/auth/*, /api/*,
- /assets/*)  │              │  /users/*, /tasks/*)
-             ▼              ▼
-      ┌──────────────┐  ┌─────────────────────────────┐
-      │   S3 Bucket  │  │ Application Load Balancer   │
-      │  (Frontend   │  │       (ALB - HTTP)          │
-      │   Hosting)   │  │                             │
-      └──────────────┘  └─────────────┬───────────────┘
-                                      │ Forward to
-                                      ▼
-        ┌─────────────────────────────────────────────┐
-        │          Auto Scaling Group (ASG)           │
-        │       (Desired / Min / Max Instances)       │
-        └───────────┬────────────────┬────────────────┘
-                    │                │
-    ┌───────────────┘                └───────────────┐
-    │                                                │
-    ▼                                                ▼
-┌────────────────────────────────────────┐  ┌─────────────────────────────────────────┐
-│         EC2 Instance (AZ-1)            │  │         EC2 Instance (AZ-2)             │
-│         Private Subnet                 │  │         Private Subnet                  │
-│                                        │  │                                         │     │                                        │  │                                         │
-│  ┌───────────────────────────────────┐ │  │  ┌───────────────────────────────────┐  │
-│  │   Docker Container (Backend)      │ │  │  │   Docker Container (Backend)      │  │
-│  │   Port: 8080                      │ │  │  │   Port: 8080                      │  │
-│  └────────┬──────────────┬───────────┘ │  │  └────────────┬────────┬─────────────┘  │
-│           │              │             │  │               │        │                │
-└───────────┼──────────────┼─────────────┘  └───────────────┼────────┼────────────────┘
-            │              │                                │        │
-            ▼              ▼                                │        │
-┌──────────────┐  ┌───────────────────────┐                 │        │
-│ MongoDB Atlas│  │ ElastiCache Redis     │◀───────────────┘        │
-│   (External  │  │   (Cache / Sessions)  │                          │
-│   Database)  │  │   Encrypted in Transit│◀────────────────────────┘
-└──────────────┘  └───────────────────────┘
-▲                            ▲
-└──────────┬─────────────────┘
-│
-┌──────────┴───────────┐
-│   CloudWatch         │
-│   • Dashboard        │
-│   • Log Groups       │
-│   • Metrics (ALB,EC2)│
-│   • Alarms (CPU,Host)│
-│   • Logs Insights    │
-└──────────────────────┘
-
-```
+![alt text](Starttech-Infra.png)
 
 ## Network Architecture
 
@@ -157,4 +96,3 @@ The Terraform configuration is organized into reusable modules:
 1. **Terraform Plan**: Validates the configuration and shows planned changes.
 2. **Terraform Apply**: Creates/updates all resources. The launch template is updated with a new version.
 3. **Instance Refresh**: The ASG replaces running instances with new ones that use the updated launch template. This is triggered automatically by the CI/CD pipeline after a new Docker image is pushed to ECR.
-```
